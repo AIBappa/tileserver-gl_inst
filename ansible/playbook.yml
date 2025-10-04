@@ -1,0 +1,4 @@
+- hosts: tileserver
+  become: true
+  roles:
+    - tileserver

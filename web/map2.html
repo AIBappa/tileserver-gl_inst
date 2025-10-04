@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>#map {position: absolute; top: 0; right: 0; bottom: 0; left: 0;}</style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    // Local tileserver-style URL
+    var map = new maplibregl.Map({
+      container: 'map',
+      // Use the rewritten local full style if present. Run scripts/rewire_style.py to generate this.
+      style: './local1-versatiles/colorful_style_local.json',
+      center: [78.9629, 20.5937],
+      zoom: 4,
+      hash: true,
+      maxZoom: 20
+    });
+
+    map.addControl(new maplibregl.NavigationControl(), 'top-left');
+
+    map.on('load', function () {
+      // nothing special; style contains boundary layers
+    });
+  </script>
+</body>
+</html>

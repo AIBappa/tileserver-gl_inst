@@ -1,0 +1,173 @@
+---
+# Main tasks for tileserver role - implemented in later todos
+
+- name: Update apt cache (Debian/Ubuntu)
+  apt:
+    update_cache: yes
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Compute RAM disk size (1/3 of total RAM)
+  set_fact:
+    ramdisk_size_mb: "{{ (ansible_memory_mb.real.total // 3) | int }}"
+
+- name: Format ramdisk_size string (G or M)
+  set_fact:
+    ramdisk_size: "{{ (ramdisk_size_mb >= 1024) | ternary(((ramdisk_size_mb // 1024) | int) ~ 'G', (ramdisk_size_mb | int) ~ 'M') }}"
+
+- name: Install runtime dependencies
+  package:
+    name:
+      - rsync
+      - python3
+    state: present
+
+- name: Ensure tileserver user exists
+  user:
+    name: "{{ tileserver_user }}"
+    system: yes
+    create_home: no
+
+- name: Create persistent MBTiles directory
+  file:
+    path: "{{ persistent_mbtiles_dir }}"
+    state: directory
+    owner: "{{ tileserver_user }}"
+    group: "{{ tileserver_user }}"
+    mode: '0755'
+
+- name: Copy MBTiles from repository into persistent directory (if present)
+  copy:
+    src: "{{ item }}"
+    dest: "{{ persistent_mbtiles_dir }}/"
+    owner: "{{ tileserver_user }}"
+    group: "{{ tileserver_user }}"
+    mode: '0644'
+  loop: "{{ mbtiles_files }}"
+  when: item is file
+
+- name: Create RAM disk mount point
+  file:
+    path: "{{ ramdisk_mount_point }}"
+    state: directory
+    owner: "{{ tileserver_user }}"
+    group: "{{ tileserver_user }}"
+    mode: '0755'
+
+- name: Mount tmpfs for MBTiles (RAM disk)
+  mount:
+    path: "{{ ramdisk_mount_point }}"
+    src: tmpfs
+    fstype: tmpfs
+    opts: "nodev,nosuid,size={{ ramdisk_size }}"
+    state: mounted
+
+- name: Rsync MBTiles from persistent storage to RAM disk
+  command: "rsync -a {{ persistent_mbtiles_dir }}/ {{ ramdisk_mount_point }}/"
+  args:
+    creates: "{{ ramdisk_mount_point }}/"
+  become: true
+  notify: restart tileserver
+
+- name: Ensure rsync will run on every boot (systemd service)
+  copy:
+    dest: /etc/systemd/system/tileserver-ram-sync.service
+    content: |
+      [Unit]
+      Description=Sync MBTiles from disk to RAM disk for tileserver
+      After=local-fs.target network.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/rsync -a {{ persistent_mbtiles_dir }}/ {{ ramdisk_mount_point }}/
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: restart tileserver
+
+- name: Enable tileserver-ram-sync.service
+  systemd:
+    name: tileserver-ram-sync.service
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Install Node.js and npm (Debian/Ubuntu)
+  apt:
+    name:
+      - nodejs
+      - npm
+    state: present
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Install tileserver-gl globally via npm
+  npm:
+    name: tileserver-gl
+    global: yes
+    state: present
+
+- name: Prepare and generate local style on control (optional)
+  block:
+    - name: Ensure style rewrite is enabled
+      assert:
+        that: "style_rewrite_enabled"
+        fail_msg: "Style rewrite is disabled (style_rewrite_enabled=false). Skipping generation."
+
+    - name: Create mapping file on control for rewire script
+      copy:
+        content: "{{ style_source_mapping | to_nice_json }}"
+        dest: "{{ playbook_dir }}/scripts/style_mapping.json"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Run style rewriter on control to produce the local style
+      command: >
+        python3 {{ playbook_dir }}/scripts/rewire_style.py
+        --mapping-file {{ playbook_dir }}/scripts/style_mapping.json
+        --output {{ playbook_dir }}/{{ style_output_path }}
+        --port {{ tileserver_port }}
+      delegate_to: localhost
+      run_once: true
+
+    - name: Ensure deploy directory exists on target
+      file:
+        path: "{{ style_deploy_dir }}/{{ style_deploy_subdir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy generated style from control to target's web directory
+      copy:
+        src: "{{ playbook_dir }}/{{ style_output_path }}"
+        dest: "{{ style_deploy_dir }}/{{ style_deploy_subdir }}/{{ style_output_path | basename }}"
+        owner: root
+        group: root
+        mode: '0644'
+      when: style_rewrite_enabled
+
+    - name: Copy example map2.html to target web directory so it can reference the local style
+      copy:
+        src: "{{ playbook_dir }}/web/map2.html"
+        dest: "{{ style_deploy_dir }}/map2.html"
+        owner: root
+        group: root
+        mode: '0644'
+      when: style_rewrite_enabled
+  when: style_rewrite_enabled
+
+- name: Deploy tileserver systemd service
+  template:
+    src: tileserver-ram.service.j2
+    dest: /etc/systemd/system/tileserver-ram.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart tileserver
+
+- name: Enable and start tileserver service
+  systemd:
+    name: tileserver-ram.service
+    enabled: yes
+    state: started
+    daemon_reload: yes

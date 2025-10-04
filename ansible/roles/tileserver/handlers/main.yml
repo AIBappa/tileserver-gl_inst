@@ -1,0 +1,7 @@
+---
+# Handlers for tileserver role
+- name: restart tileserver
+  systemd:
+    name: tileserver-ram.service
+    state: restarted
+    daemon_reload: yes

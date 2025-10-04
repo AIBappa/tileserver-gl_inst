@@ -31,4 +31,30 @@ Caveats
 - tmpfs is ephemeral: if the machine reboots, MBTiles are restored from the persistent directory by the sync service.
 - Debian/Ubuntu Node/npm packages from official apt repositories can be old; consider using NodeSource if you need a newer Node.js runtime.
 
-If you want I can also add an inventory example and a small Ansible role test to validate installation.
+Cloudflared (Cloudflare Tunnel) integration
+
+This role can optionally update an existing cloudflared tunnel configuration on the target host to add an ingress rule that routes tile requests to the local tileserver. By default the role will:
+
+- copy a safe merge script (`scripts/merge_cloudflared_ingress.py`) to the target,
+- install `python3-yaml` (PyYAML) so the merge script can parse and safely update the YAML config,
+- append a hostname- or path-based ingress rule to the existing cloudflared config (backing up the original), and
+- restart the `{{ cloudflared_service_name }}` systemd service if the config was modified.
+
+Defaults
+- The role looks for the cloudflared config at `{{ cloudflared_config_path }}` (default `/etc/cloudflared/config.yml`).
+- Configure `cloudflared_ingress_hostname` (if you want a new hostname like `tiles.example.com`) or leave it empty and the role will add a path-based rule using `cloudflared_ingress_path` (default `/data/*`) on the existing tunnel hostname.
+- Remote style generation: set `cloudflared_tiles_base_url` to the public URL you want embedded into the generated style, for example:
+
+  cloudflared_tiles_base_url: 'https://tiles.example.com/data/{mbtiles}'
+
+  If this is set the style rewriter will use it when producing tile URLs. If it's empty the role will default to `http://localhost:{{ tileserver_port }}` and the rewriter will embed localhost-based URLs.
+
+Safety
+- The merge script creates a timestamped backup of the cloudflared config before modifying it.
+- If the exact same ingress rule already exists the script will not change the config and will print `UNCHANGED`.
+
+Permissions & prerequisites
+- The target host should already be running a Cloudflare Tunnel service and the role will attempt to update its configuration. If your environment uses different config paths or a service name other than `{{ cloudflared_service_name }}` update the defaults in `ansible/roles/tileserver/defaults/main.yml`.
+
+Manual alternative
+- If you prefer not to let Ansible modify your tunnel config automatically, you can set `cloudflared_update_ingress: false` and manually add the ingress rule (examples are in the repo’s documentation). The generated style can still be created with the base URL set and copied to the target without altering the tunnel.

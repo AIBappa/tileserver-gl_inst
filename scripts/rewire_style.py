@@ -50,6 +50,7 @@ def main():
     p.add_argument('--mapping', '-m', help='JSON string mapping sourceName -> mbtiles_basename (no .mbtiles)')
     p.add_argument('--mapping-file', '-f', help='JSON file containing the mapping')
     p.add_argument('--port', type=int, default=8080, help='Tileserver port used in generated URLs')
+    p.add_argument('--base-url', help="Base URL to prefix tile URLs. Can include the token '{mbtiles}' which will be replaced by the MBTiles basename. Examples:\n  https://tiles.example.com/data/{mbtiles}\n  https://example.com/tiles (will be expanded to https://example.com/tiles/{mbtiles})")
     args = p.parse_args()
 
     if args.mapping and args.mapping_file:
@@ -87,7 +88,15 @@ def main():
                 continue
 
             # Construct local tiles url template
-            local_template = f"http://localhost:{args.port}/data/{mbname}/{{z}}/{{x}}/{{y}}.pbf"
+            if args.base_url:
+                # If base_url contains {mbtiles} token, use it; otherwise append /{mbtiles}
+                if '{mbtiles}' in args.base_url:
+                    prefix = args.base_url.replace('{mbtiles}', mbname)
+                else:
+                    prefix = args.base_url.rstrip('/') + '/' + mbname
+                local_template = f"{prefix}/{{z}}/{{x}}/{{y}}.pbf"
+            else:
+                local_template = f"http://localhost:{args.port}/data/{mbname}/{{z}}/{{x}}/{{y}}.pbf"
             source['tiles'] = [local_template]
             # prefer xyz scheme
             source['scheme'] = source.get('scheme', 'xyz')

@@ -125,7 +125,7 @@
         python3 {{ playbook_dir }}/scripts/rewire_style.py
         --mapping-file {{ playbook_dir }}/scripts/style_mapping.json
         --output {{ playbook_dir }}/{{ style_output_path }}
-        --port {{ tileserver_port }}
+        {% if cloudflared_tiles_base_url != '' %}--base-url '{{ cloudflared_tiles_base_url }}'{% else %}--port {{ tileserver_port }}{% endif %}
       delegate_to: localhost
       run_once: true
 
@@ -154,6 +154,39 @@
         group: root
         mode: '0644'
       when: style_rewrite_enabled
+
+    - name: Copy cloudflared ingress merge script to target (if updating existing tunnel)
+      copy:
+        src: "{{ playbook_dir }}/scripts/merge_cloudflared_ingress.py"
+        dest: "{{ cloudflared_merge_script_path }}"
+        owner: root
+        group: root
+        mode: '0755'
+      when: cloudflared_update_ingress
+
+    - name: Install PyYAML package for merge script (Debian/Ubuntu)
+      apt:
+        name: python3-yaml
+        state: present
+      when: cloudflared_update_ingress and ansible_pkg_mgr == 'apt'
+
+    - name: Merge ingress rule into existing cloudflared config on target
+      command: >
+        {{ cloudflared_merge_script_path }}
+        --config {{ cloudflared_config_path }}
+        {% if cloudflared_ingress_hostname != '' %} --hostname {{ cloudflared_ingress_hostname }} {% else %} --path '{{ cloudflared_ingress_path }}' {% endif %}
+        --service '{{ cloudflared_ingress_service }}'
+      register: merge_result
+      changed_when: "'MODIFIED' in merge_result.stdout"
+      failed_when: "merge_result.rc not in [0,3]"
+      when: cloudflared_update_ingress
+
+    - name: Restart cloudflared service if ingress modified
+      systemd:
+        name: "{{ cloudflared_service_name }}"
+        state: restarted
+        daemon_reload: yes
+      when: cloudflared_update_ingress and (merge_result.stdout is defined and 'MODIFIED' in merge_result.stdout)
   when: style_rewrite_enabled
 
 - name: Install and configure a simple web server (nginx)

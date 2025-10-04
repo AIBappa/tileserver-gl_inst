@@ -65,9 +65,60 @@ Boundary layers and styling
 
 The style generation rewrites the upstream style (the colorful versatiles style from the link you provided) and keeps its layers — including the boundary layers for country and state (admin_level 2 and 4). The `style_source_mapping` default maps the `versatiles-shortbread` source to the `india-latest` MBTiles so that political boundary rendering from the original style is preserved when served locally. If you want to change which MBTiles file powers which style source, update the `style_source_mapping` variable in `ansible/roles/tileserver/defaults/main.yml` or pass an override variable during the playbook execution.
 
-Notes and caveats
-- tmpfs is ephemeral; the role ensures MBTiles are persisted on disk in `/var/lib/tileserver/mbtiles` and a systemd one-shot copies them into the RAM disk at boot.
-- The rewire script only replaces `tiles` array entries in the style. If the style references other external resources (glyphs, sprites, tiles from other sources) you may need to adapt the style further.
-- Node.js from apt may be older; for newer Node.js use NodeSource or set up a different installation method.
+Cloudflare Tunnel (cloudflared) — keys, setup and secure handling
 
-If you want me to integrate the rewire script into the Ansible run (so the style JSON is generated during playbook execution on the control node or the target), I can add that step.
+What credentials/permissions are needed
+- No secret credentials are required just to run the local tileserver and the role if you only want to use the existing tunnel and add a path-based ingress rule. The role can optionally (and safely) update an existing local cloudflared config file at `/etc/cloudflared/config.yml` to add a new ingress rule.
+- If you want the role to create DNS entries or automate Cloudflare-managed hostnames, you will need a Cloudflare API Token with scoped permissions. Recommended minimal scopes for DNS management:
+  - Zone.Zone:Read (to list the zone)
+  - Zone.DNS:Edit (to create/update DNS records)
+  - (If automating tunnels via the API you may need additional permissions; consult Cloudflare docs.)
+
+Minimum CF API token permissions for automated DNS creation (if you choose to use it):
+- Permissions: `Zone:Read`, `Zone:DNS:Edit` scoped to the target zone.
+
+Where to set credentials and how to provide them to Ansible securely
+- Do NOT place API tokens or private tunnel credential files in the repository.
+- Options to supply secrets safely:
+  1) Ansible Vault: store sensitive variables in an encrypted vault file and reference them in inventory or group_vars. Example:
+     ansible-vault create group_vars/tileserver/vault.yml
+     (store: cloudflare_api_token: "<YOUR_TOKEN>")
+     Then run playbook with `--ask-vault-pass` or supply vault password file.
+  2) Environment variables + extra-vars: export CF_API_TOKEN in your shell and pass as extra-vars when invoking the playbook: 
+     export CF_API_TOKEN="abcdefgh123..."
+     ansible-playbook -i inventory.ini ansible/playbook.yml --become -e "cloudflare_api_token=$CF_API_TOKEN"
+  3) CI/CD secrets store: store tokens in your CI secrets (GitHub Actions secrets, GitLab CI variables) and pass them into the job at runtime; never store tokens in plaintext in the repo.
+
+How the role uses the tunnel (reuse existing tunnel)
+- The role will NOT create a new Cloudflare Tunnel by default. Instead it will:
+  - Copy a small safe merge script (`scripts/merge_cloudflared_ingress.py`) to the target host,
+  - Install PyYAML (`python3-yaml`) so the merge script can safely parse and update `/etc/cloudflared/config.yml`,
+  - Add either a hostname-based or path-based ingress rule depending on the variables you set:
+    - Hostname: set `cloudflared_ingress_hostname: 'tiles.example.com'` to add a hostname rule.
+    - Path: leave `cloudflared_ingress_hostname` empty and set `cloudflared_ingress_path: '/data/*'` to add a path rule on the existing hostname.
+  - The merge script makes a timestamped backup before altering the YAML and prints `MODIFIED` or `UNCHANGED`. If the rule already exists, no change is made.
+- If you do not want Ansible to modify your cloudflared configuration, set `cloudflared_update_ingress: false`. The role will still generate and copy the style file; you can then add the ingress rule manually.
+
+Embedding the public tiles URL into the style
+- To have the generated style reference the public tunnel URL, set the `cloudflared_tiles_base_url` variable. Examples:
+  - Hostname-based ingress: `cloudflared_tiles_base_url: 'https://tiles.example.com/data/{mbtiles}'`
+  - Path-based reuse of existing hostname: `cloudflared_tiles_base_url: 'https://your-existing-host.example.com/data'`
+- The rewriter supports a `{mbtiles}` token — if present it will be replaced by the MBTiles basename; if missing it will append the MBTiles basename automatically.
+
+Example secure workflow (path-based reuse of existing tunnel)
+1. On your control machine, generate the local style and tell the role to use the existing tunnel path and not alter DNS:
+   ansible-playbook -i inventory.ini ansible/playbook.yml --become -e "cloudflared_update_ingress=true cloudflared_ingress_path='/data/*' cloudflared_tiles_base_url='https://your-existing-host.example.com/data'"
+2. The role will add an ingress `/data/*` rule to your existing tunnel config (with a safe backup), copy the style, and restart cloudflared if needed.
+
+What the role will NOT do unless you enable more automation
+- The role will NOT create Cloudflare API tokens, tunnel credentials, or DNS records for you unless you explicitly add automation for DNS or tunnel creation. Those steps require elevated Cloudflare permissions and are intentionally not automated by default.
+
+Secret scan confirmation
+- I scanned the repository for common secret names and patterns (API tokens, zone IDs, account IDs, `api_token`, `api_key`, `secret`, and long alphanumeric sequences) and did not find any Cloudflare API tokens, keys, or secret files committed to the repository.
+- Please double-check that you have not accidentally placed any secret tokens in files you plan to commit. If you want, I can add a pre-commit hook to detect common secret patterns.
+
+Do NOT commit credentials
+- If you add any Cloudflare API tokens or other secrets to inventory or group_vars during testing, always encrypt them with Ansible Vault or keep them out of the repo and use environment variables or your CI secret store.
+
+If you want help with DNS automation
+- I can add optional Ansible tasks that call the Cloudflare API to create DNS records for new hostnames (this requires a Cloudflare API token and zone ID). If you want that, tell me and I will add a secure, optional task that accepts your API token via Ansible Vault or environment variable and creates the required DNS record.

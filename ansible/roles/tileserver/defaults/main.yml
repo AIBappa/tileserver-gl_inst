@@ -22,3 +22,22 @@ style_deploy_dir: /var/lib/tileserver/web
 style_deploy_subdir: local1-versatiles
 # enable or disable automatic rewire and deployment as part of the role
 style_rewrite_enabled: true
+
+# Cloudflared (Cloudflare Tunnel) integration
+# Path to the existing cloudflared config on the target host
+cloudflared_config_path: /etc/cloudflared/config.yml
+# Whether to try to update the existing cloudflared tunnel config on the target
+cloudflared_update_ingress: true
+# If you want a hostname-based ingress, set hostname to e.g. 'tiles.example.com'. If empty, path-based ingress will be used against existing hostname
+cloudflared_ingress_hostname: ''
+# Path-based ingress (on the existing hostname) e.g. '/data/*'
+cloudflared_ingress_path: '/data/*'
+# Service to route to on the local host (tileserver)
+cloudflared_ingress_service: 'http://127.0.0.1:{{ tileserver_port }}'
+# Name of the cloudflared systemd unit (may vary)
+cloudflared_service_name: cloudflared
+# Custom tiles base URL to use in the generated style. If set, this will be passed to the rewire script and used as the prefix for tile URLs.
+# Example: 'https://tiles.example.com/data/{mbtiles}' or 'https://example.com/tiles/{mbtiles}'
+cloudflared_tiles_base_url: ''
+# Path on the target where the merge script will be installed
+cloudflared_merge_script_path: /usr/local/bin/merge_cloudflared_ingress.py

@@ -1,0 +1,30 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    server_name _;
+
+    root {{ style_deploy_dir }};
+
+    # Serve static web content under / (map2.html is copied to /map2.html)
+    location / {
+        try_files $uri $uri/ =404;
+        # Add common headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    # If tileserver is running on the same host and serves /data, proxy pass tiles requests to tileserver
+    location /data/ {
+        proxy_pass http://127.0.0.1:{{ tileserver_port }}/data/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_buffering off;
+    }
+
+    # Optional: prevent indexing
+    location = /robots.txt {
+        return 200 "User-agent: *\nDisallow: /\n";
+        add_header Content-Type text/plain;
+    }
+}

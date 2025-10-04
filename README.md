@@ -48,6 +48,23 @@ Run the playbook:
 
 ansible-playbook -i inventory.ini ansible/playbook.yml --become
 
+One-command deploy (including demo site)
+
+To perform a single command deploy that prepares MBTiles, generates a local style that mirrors the upstream style with local tile URLs, deploys the tileserver, and serves the demo web page via nginx, run:
+
+ansible-playbook -i inventory.ini ansible/playbook.yml --become
+
+After the play completes, open your browser to http://<target-host>/map2.html to view the demo. The playbook:
+- creates a persistent MBTiles directory on the target host
+- mounts a RAM disk and copies MBTiles into it
+- installs tileserver-gl and starts it as a systemd service
+- generates a local copy of the upstream style (rewrites remote tiles to point to local /data/<mbtiles>/... endpoints)
+- installs and configures nginx to serve `/var/lib/tileserver/web` so `map2.html` and the generated style are available via HTTP
+
+Boundary layers and styling
+
+The style generation rewrites the upstream style (the colorful versatiles style from the link you provided) and keeps its layers — including the boundary layers for country and state (admin_level 2 and 4). The `style_source_mapping` default maps the `versatiles-shortbread` source to the `india-latest` MBTiles so that political boundary rendering from the original style is preserved when served locally. If you want to change which MBTiles file powers which style source, update the `style_source_mapping` variable in `ansible/roles/tileserver/defaults/main.yml` or pass an override variable during the playbook execution.
+
 Notes and caveats
 - tmpfs is ephemeral; the role ensures MBTiles are persisted on disk in `/var/lib/tileserver/mbtiles` and a systemd one-shot copies them into the RAM disk at boot.
 - The rewire script only replaces `tiles` array entries in the style. If the style references other external resources (glyphs, sprites, tiles from other sources) you may need to adapt the style further.

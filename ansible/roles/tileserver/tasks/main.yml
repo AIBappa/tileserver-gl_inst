@@ -156,6 +156,44 @@
       when: style_rewrite_enabled
   when: style_rewrite_enabled
 
+- name: Install and configure a simple web server (nginx)
+  block:
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: present
+      when: ansible_pkg_mgr == 'apt'
+
+    - name: Deploy nginx site configuration for tileserver web
+      template:
+        src: nginx_tileserver.conf.j2
+        dest: /etc/nginx/sites-available/tileserver.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart nginx
+
+    - name: Enable nginx site
+      file:
+        src: /etc/nginx/sites-available/tileserver.conf
+        dest: /etc/nginx/sites-enabled/tileserver.conf
+        state: link
+      notify: restart nginx
+
+    - name: Remove default nginx site if present
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: restart nginx
+
+    - name: Ensure nginx is enabled and started
+      systemd:
+        name: nginx
+        enabled: yes
+        state: started
+        daemon_reload: yes
+  when: style_rewrite_enabled
+
 - name: Deploy tileserver systemd service
   template:
     src: tileserver-ram.service.j2

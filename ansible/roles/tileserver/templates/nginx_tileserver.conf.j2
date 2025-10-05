@@ -1,6 +1,11 @@
 server {
+    {% if tileserver_nginx_listen != '' %}
+    listen {{ tileserver_nginx_listen }};
+    listen [::]:{{ tileserver_nginx_listen }};
+    {% else %}
     listen 80 default_server;
     listen [::]:80 default_server;
+    {% endif %}
 
     server_name _;
 

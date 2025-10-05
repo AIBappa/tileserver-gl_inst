@@ -8,6 +8,7 @@ __pycache__/
 # Ansible files
 ansible/inventory.ini
 ansible/credentials.yml
+ansible/roles/tileserver/defaults/main.yml
 ansible/secrets.yml
 ansible/group_vars/
 ansible/inventory.ini

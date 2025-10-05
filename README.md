@@ -39,10 +39,21 @@ and sets the RAM disk size to 1/3 of available memory. The default variable `ram
 
 3) Run the Ansible playbook
 
-Example inventory file (inventory.ini):
+Example inventory file (inventory.ini) for local deployment:
 
 [tileserver]
-myserver.example.com ansible_user=ubuntu
+localhost ansible_connection=local
+
+Run the playbook (it will prompt for sudo password):
+
+ansible-playbook -i inventory.ini ansible/playbook.yml --ask-become-pass
+
+For remote deployment, use:
+
+Example inventory file (inventory.ini) for remote deployment:
+
+[tileserver]
+tileserver.example.com ansible_user=ubuntu
 
 Run the playbook:
 

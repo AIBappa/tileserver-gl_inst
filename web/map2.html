@@ -2,8 +2,8 @@
 <html>
 <head>
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
-  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" rel="stylesheet" />
   <style>#map {position: absolute; top: 0; right: 0; bottom: 0; left: 0;}</style>
 </head>
 <body>
@@ -13,7 +13,7 @@
     var map = new maplibregl.Map({
       container: 'map',
       // Use the rewritten local full style if present. Run scripts/rewire_style.py to generate this.
-      style: './local1-versatiles/colorful_style_local.json',
+      style: './maptiler-basic_local.json',
       center: [78.9629, 20.5937],
       zoom: 4,
       hash: true,
@@ -23,7 +23,50 @@
     map.addControl(new maplibregl.NavigationControl(), 'top-left');
 
     map.on('load', function () {
-      // nothing special; style contains boundary layers
+      // Debugging helpers: log style, sources and tile load events
+      function dbg(msg, level) {
+        console[(level||'log')](msg);
+        try {
+          var el = document.getElementById('map-debug');
+          if (!el) {
+            el = document.createElement('pre');
+            el.id = 'map-debug';
+            el.style.cssText = 'position:fixed;right:8px;bottom:8px;max-width:360px;max-height:240px;overflow:auto;padding:6px;background:rgba(0,0,0,0.6);color:#fff;font-size:12px;z-index:9999;border-radius:4px;';
+            document.body.appendChild(el);
+          }
+          el.textContent = (new Date()).toISOString() + ' - ' + String(msg) + '\n' + el.textContent;
+        } catch (e) { console.error('dbg failed', e); }
+      }
+
+      dbg('map load event');
+      try {
+        dbg('style name: ' + (map.getStyle() && map.getStyle().name));
+        dbg('style sources: ' + JSON.stringify(Object.keys(map.getStyle().sources)));
+      } catch (err) { dbg('getStyle failed: ' + err, 'error'); }
+
+      map.on('sourcedata', function (e) {
+        // Log when tiles or source metadata are requested/loaded
+        var info = {source: e.sourceId, type: e.sourceDataType, tile: (e.tile && e.tile.coord) || null, isSourceLoaded: e.isSourceLoaded};
+        dbg('sourcedata: ' + JSON.stringify(info));
+      });
+
+      map.on('data', function (e) {
+        dbg('data event: ' + JSON.stringify({id: e.dataType || e.type, source: e.sourceId || null}));
+      });
+
+      map.on('error', function (err) {
+        dbg('map error: ' + (err && err.error && err.error.message ? err.error.message : JSON.stringify(err)), 'error');
+      });
+
+      // Periodically show whether sources are marked loaded
+      setInterval(function () {
+        try {
+          var s = map.getStyle() && map.getStyle().sources || {};
+          Object.keys(s).forEach(function (src) {
+            try { dbg('source ' + src + ' loaded=' + map.isSourceLoaded(src)); } catch (e) { dbg('isSourceLoaded error for ' + src + ': ' + e, 'error'); }
+          });
+        } catch (e) { dbg('status check failed: ' + e, 'error'); }
+      }, 2000);
     });
   </script>
 </body>

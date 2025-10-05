@@ -28,12 +28,89 @@
   set_fact:
     ramdisk_size: "{{ ((ramdisk_size_mb | int) >= 1024) | ternary((((ramdisk_size_mb | int) // 1024) | int) ~ 'G', (ramdisk_size_mb | int) ~ 'M') }}"
 
-- name: Install runtime dependencies
+- name: Validate tileserver deployment method
+  assert:
+    that:
+      - tileserver_deploy_method in ['docker', 'native']
+    fail_msg: "tileserver_deploy_method must be either 'docker' or 'native'"
+
+- name: Install base runtime dependencies
   package:
     name:
       - rsync
       - python3
     state: present
+  become: true
+
+- name: Install native runtime libraries and shims
+  block:
+    - name: Install native runtime libraries
+      package:
+        name:
+          - libjpeg62-turbo
+          - libwebp6
+        state: present
+      become: true
+
+    - name: Check for libjpeg.so.62 runtime library
+      stat:
+        path: /usr/lib/x86_64-linux-gnu/libjpeg.so.62
+      register: libjpeg62_runtime
+
+    - name: Check for libjpeg.so.8 compatibility shim
+      stat:
+        path: /usr/lib/x86_64-linux-gnu/libjpeg.so.8
+      register: libjpeg8_runtime
+
+    - name: Create compatibility symlink for libjpeg.so.8 if required
+      file:
+        src: /usr/lib/x86_64-linux-gnu/libjpeg.so.62
+        dest: /usr/lib/x86_64-linux-gnu/libjpeg.so.8
+        state: link
+      become: true
+      when:
+        - libjpeg62_runtime.stat.exists
+        - not libjpeg8_runtime.stat.exists
+
+    - name: Check for libwebp.so.6 runtime library
+      stat:
+        path: /usr/lib/x86_64-linux-gnu/libwebp.so.6
+      register: libwebp6_runtime
+
+    - name: Check for libwebp.so.7 compatibility shim
+      stat:
+        path: /usr/lib/x86_64-linux-gnu/libwebp.so.7
+      register: libwebp7_runtime
+
+    - name: Create compatibility symlink for libwebp.so.7 if required
+      file:
+        src: /usr/lib/x86_64-linux-gnu/libwebp.so.6
+        dest: /usr/lib/x86_64-linux-gnu/libwebp.so.7
+        state: link
+      become: true
+      when:
+        - libwebp6_runtime.stat.exists
+        - not libwebp7_runtime.stat.exists
+  when: tileserver_deploy_method == 'native'
+
+- name: Install Docker engine (Debian/Ubuntu)
+  apt:
+    name:
+      - docker.io
+    state: present
+    update_cache: yes
+  when:
+    - tileserver_deploy_method == 'docker'
+    - ansible_pkg_mgr == 'apt'
+  become: true
+
+- name: Ensure Docker service is enabled and started
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+  when: tileserver_deploy_method == 'docker'
+  become: true
 
 - name: Ensure tileserver user exists
   user:
@@ -152,18 +229,23 @@
         that:
           - "node_version.stdout is version('v20', '>=')"
         fail_msg: "Node.js version {{ node_version.stdout }} is too old. Need v20 or higher."
-  when: ansible_pkg_mgr == 'apt'
+  when:
+    - tileserver_deploy_method == 'native'
+    - ansible_pkg_mgr == 'apt'
 
 - name: Force cleanup of any existing tileserver-gl installations
   shell: |
     rm -rf /usr/lib/node_modules/tileserver-gl
+    rm -rf /usr/lib/node_modules/.tileserver-gl-*
     rm -rf /usr/local/lib/node_modules/tileserver-gl
+    rm -rf /usr/local/lib/node_modules/.tileserver-gl-*
     rm -f /usr/local/bin/tileserver-gl
     rm -f /usr/bin/tileserver-gl
   args:
     warn: false
   become: true
   failed_when: false
+  when: tileserver_deploy_method == 'native'
 
 - name: Install tileserver-gl globally via npm (with verbose output)
   shell: /usr/bin/npm install -g tileserver-gl --loglevel=info 2>&1
@@ -172,11 +254,14 @@
   become: true
   register: npm_install_result
   changed_when: "'added' in npm_install_result.stdout"
+  when: tileserver_deploy_method == 'native'
 
 - name: Show npm install output
   debug:
     var: npm_install_result.stdout_lines
-  when: npm_install_result.changed
+  when:
+    - tileserver_deploy_method == 'native'
+    - npm_install_result.changed
 
 - name: Prepare and generate local style on control (optional)
   block:

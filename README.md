@@ -1,7 +1,9 @@
 Tileserver-GL with RAM-disk Ansible setup
 
 This repository contains an Ansible role and supporting scripts to run a tileserver-gl instance
-with MBTiles mounted in RAM (tmpfs) for speed, while keeping a persistent copy on disk.
+with MBTiles mounted in RAM (tmpfs) for speed, while keeping a persistent copy on disk. The role
+now deploys Tileserver-GL via Docker by default to avoid native dependency churn; switch back to the
+historical npm-based install by setting `tileserver_deploy_method=native`.
 
 Files you will find here
 - ansible/playbook.yml: top-level playbook that runs the tileserver role

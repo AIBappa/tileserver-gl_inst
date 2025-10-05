@@ -303,6 +303,14 @@
         mode: '0644'
       when: style_rewrite_enabled
 
+    - name: Derive Cloudflare public origin from tiles base URL
+      when:
+        - style_rewrite_enabled
+        - cloudflared_tiles_base_url is defined
+        - cloudflared_tiles_base_url | length > 0
+      set_fact:
+        cloudflared_tiles_base_origin: "{{ cloudflared_tiles_base_url | regex_replace('(/data.*)?$', '') }}"
+
     - name: Rewrite deployed style JSON to use cloudflared_tiles_base_url if configured
       when:
         - style_rewrite_enabled
@@ -310,9 +318,69 @@
         - cloudflared_tiles_base_url | length > 0
       replace:
         path: "{{ style_deploy_dir }}/{{ style_deploy_subdir }}/{{ style_output_path | basename }}"
-        # Replace any localhost URL with a port (e.g. http://127.0.0.1:8081 or http://127.0.0.1:8080/data)
-        regexp: "http://127\\.0\\.0\\.1(:[0-9]+)?(/data)?"
-        replace: "{{ cloudflared_tiles_base_url }}"
+        regexp: "http://127\\.0\\.0\\.1(:[0-9]+)?"
+        replace: "{{ cloudflared_tiles_base_origin }}"
+      notify: restart nginx
+
+    - name: Find any deployed JSON files under the web directory
+      find:
+        paths: "{{ style_deploy_dir }}"
+        patterns: "*.json"
+        recurse: yes
+      register: deployed_json_files
+      when:
+        - style_rewrite_enabled
+        - cloudflared_tiles_base_url is defined
+        - cloudflared_tiles_base_url | length > 0
+
+    - name: Replace localhost tile/sprite/glyph URLs in all deployed JSON files
+      when:
+        - deployed_json_files is defined
+        - deployed_json_files.files | length > 0
+      replace:
+        path: "{{ item.path }}"
+        regexp: "http://127\\.0\\.0\\.1(:[0-9]+)?"
+        replace: "{{ cloudflared_tiles_base_origin }}"
+      loop: "{{ deployed_json_files.files }}"
+      notify: restart nginx
+
+    - name: Check if maptiler-basic style is deployed
+      stat:
+        path: "{{ style_deploy_dir }}/maptiler-basic_local.json"
+      register: maptiler_style_stat
+      when: style_rewrite_enabled
+
+    - name: Update maptiler-basic tile endpoint for Cloudflare hostname
+      when:
+        - style_rewrite_enabled
+        - maptiler_style_stat.stat.exists | default(false)
+        - cloudflared_tiles_base_origin is defined
+      replace:
+        path: "{{ style_deploy_dir }}/maptiler-basic_local.json"
+        regexp: '"tiles": \[[^\]]+\]'
+        replace: '"tiles": [\n        "{{ cloudflared_tiles_base_origin }}/data/v3/{z}/{x}/{y}.pbf"\n      ]'
+      notify: restart nginx
+
+    - name: Update maptiler-basic sprite endpoint for Cloudflare hostname
+      when:
+        - style_rewrite_enabled
+        - maptiler_style_stat.stat.exists | default(false)
+        - cloudflared_tiles_base_origin is defined
+      replace:
+        path: "{{ style_deploy_dir }}/maptiler-basic_local.json"
+        regexp: '"sprite": "[^"]+"'
+        replace: '"sprite": "{{ cloudflared_tiles_base_origin }}/maptiler-basic/sprite"'
+      notify: restart nginx
+
+    - name: Update maptiler-basic glyph endpoint for Cloudflare hostname
+      when:
+        - style_rewrite_enabled
+        - maptiler_style_stat.stat.exists | default(false)
+        - cloudflared_tiles_base_origin is defined
+      replace:
+        path: "{{ style_deploy_dir }}/maptiler-basic_local.json"
+        regexp: '"glyphs": "[^"]+"'
+        replace: '"glyphs": "{{ cloudflared_tiles_base_origin }}/fonts/{fontstack}/{range}.pbf"'
       notify: restart nginx
 
     - name: Copy example map2.html to target web directory so it can reference the local style

@@ -21,7 +21,7 @@ server {
     # Serve static web content under / (map2.html is copied to /map2.html)
     location / {
         # Fallback to the demo page so requests to / (forwards from a Cloudflare hostname) return the demo
-        try_files $uri $uri/ /map2.html;
+        try_files $uri $uri/index.html /map2.html;
         # Add common headers
         add_header X-Frame-Options "SAMEORIGIN" always;
         add_header X-Content-Type-Options "nosniff" always;

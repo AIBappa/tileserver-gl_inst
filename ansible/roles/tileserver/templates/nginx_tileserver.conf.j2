@@ -1,7 +1,14 @@
 server {
     {% if tileserver_nginx_listen != '' %}
+    {# If tileserver_nginx_listen contains host:port (e.g. 127.0.0.1:8081) split and use the port for the IPv6 listen #}
+    {% set _parts = tileserver_nginx_listen.split(':') %}
+    {% if _parts | length >= 2 %}
+    listen {{ tileserver_nginx_listen }};
+    listen [::]:{{ _parts[-1] }};
+    {% else %}
     listen {{ tileserver_nginx_listen }};
     listen [::]:{{ tileserver_nginx_listen }};
+    {% endif %}
     {% else %}
     listen 80 default_server;
     listen [::]:80 default_server;

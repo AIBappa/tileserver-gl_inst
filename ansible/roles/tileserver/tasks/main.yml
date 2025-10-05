@@ -154,24 +154,22 @@
         fail_msg: "Node.js version {{ node_version.stdout }} is too old. Need v20 or higher."
   when: ansible_pkg_mgr == 'apt'
 
-- name: Check if tileserver-gl is already installed
-  command: /usr/bin/npm list -g tileserver-gl
-  register: tileserver_check
-  failed_when: false
-  changed_when: false
-
-- name: Remove broken tileserver-gl installation if exists  
-  shell: rm -rf /usr/lib/node_modules/tileserver-gl /usr/local/lib/node_modules/tileserver-gl /usr/local/bin/tileserver-gl
+- name: Force cleanup of any existing tileserver-gl installations
+  shell: |
+    rm -rf /usr/lib/node_modules/tileserver-gl
+    rm -rf /usr/local/lib/node_modules/tileserver-gl
+    rm -f /usr/local/bin/tileserver-gl
+    rm -f /usr/bin/tileserver-gl
   args:
     warn: false
-  when: tileserver_check.rc != 0
+  become: true
+  failed_when: false
 
 - name: Install tileserver-gl globally via npm (with verbose output)
   shell: /usr/bin/npm install -g tileserver-gl --loglevel=info 2>&1
   environment:
     PATH: "/usr/bin:{{ ansible_env.PATH }}"
-  args:
-    creates: /usr/local/lib/node_modules/tileserver-gl/package.json
+  become: true
   register: npm_install_result
   changed_when: "'added' in npm_install_result.stdout"
 

@@ -98,11 +98,22 @@
     daemon_reload: yes
 
 - name: Install Node.js and npm (Debian/Ubuntu)
-  apt:
-    name:
-      - nodejs
-      - npm
-    state: present
+  block:
+    - name: Install curl for NodeSource setup
+      apt:
+        name: curl
+        state: present
+
+    - name: Add NodeSource repository for Node.js 20.x
+      shell: curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      args:
+        creates: /etc/apt/sources.list.d/nodesource.list
+
+    - name: Install Node.js 20.x
+      apt:
+        name: nodejs
+        state: present
+        update_cache: yes
   when: ansible_pkg_mgr == 'apt'
 
 - name: Install tileserver-gl globally via npm
@@ -121,15 +132,15 @@
     - name: Create mapping file on control for rewire script
       copy:
         content: "{{ style_source_mapping | to_nice_json }}"
-        dest: "{{ playbook_dir }}/scripts/style_mapping.json"
+        dest: "{{ playbook_dir }}/../scripts/style_mapping.json"
       delegate_to: localhost
       run_once: true
 
     - name: Run style rewriter on control to produce the local style
       command: >
-        python3 {{ playbook_dir }}/scripts/rewire_style.py
-        --mapping-file {{ playbook_dir }}/scripts/style_mapping.json
-        --output {{ playbook_dir }}/{{ style_output_path }}
+        python3 {{ playbook_dir }}/../scripts/rewire_style.py
+        --mapping-file {{ playbook_dir }}/../scripts/style_mapping.json
+        --output {{ playbook_dir }}/../{{ style_output_path }}
         {% if cloudflared_tiles_base_url != '' %}--base-url '{{ cloudflared_tiles_base_url }}'{% else %}--port {{ tileserver_port }}{% endif %}
       delegate_to: localhost
       run_once: true
@@ -144,7 +155,7 @@
 
     - name: Copy generated style from control to target's web directory
       copy:
-        src: "{{ playbook_dir }}/{{ style_output_path }}"
+        src: "{{ playbook_dir }}/../{{ style_output_path }}"
         dest: "{{ style_deploy_dir }}/{{ style_deploy_subdir }}/{{ style_output_path | basename }}"
         owner: root
         group: root
@@ -153,7 +164,7 @@
 
     - name: Copy example map2.html to target web directory so it can reference the local style
       copy:
-        src: "{{ playbook_dir }}/web/map2.html"
+        src: "{{ playbook_dir }}/../web/map2.html"
         dest: "{{ style_deploy_dir }}/map2.html"
         owner: root
         group: root
@@ -162,7 +173,7 @@
 
     - name: Copy cloudflared ingress merge script to target (if updating existing tunnel)
       copy:
-        src: "{{ playbook_dir }}/scripts/merge_cloudflared_ingress.py"
+        src: "{{ playbook_dir }}/../scripts/merge_cloudflared_ingress.py"
         dest: "{{ cloudflared_merge_script_path }}"
         owner: root
         group: root
@@ -270,5 +281,5 @@
   systemd:
     name: mnt-tileserver\x2dmbtiles.mount
     enabled: yes
-    state: mounted
+    state: started
     daemon_reload: yes

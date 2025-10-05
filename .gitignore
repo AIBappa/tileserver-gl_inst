@@ -12,3 +12,7 @@ ansible/roles/tileserver/defaults/main.yml
 ansible/secrets.yml
 ansible/group_vars/
 ansible/inventory.ini
+
+# Local deployment helper files
+deployment.md
+inventory.ini.sample

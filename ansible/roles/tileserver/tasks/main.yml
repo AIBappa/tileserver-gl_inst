@@ -303,6 +303,18 @@
         mode: '0644'
       when: style_rewrite_enabled
 
+    - name: Rewrite deployed style JSON to use cloudflared_tiles_base_url if configured
+      when:
+        - style_rewrite_enabled
+        - cloudflared_tiles_base_url is defined
+        - cloudflared_tiles_base_url | length > 0
+      replace:
+        path: "{{ style_deploy_dir }}/{{ style_deploy_subdir }}/{{ style_output_path | basename }}"
+        # Replace any localhost URL with a port (e.g. http://127.0.0.1:8081 or http://127.0.0.1:8080/data)
+        regexp: "http://127\\.0\\.0\\.1(:[0-9]+)?(/data)?"
+        replace: "{{ cloudflared_tiles_base_url }}"
+      notify: restart nginx
+
     - name: Copy example map2.html to target web directory so it can reference the local style
       copy:
         src: "{{ playbook_dir }}/../web/map2.html"

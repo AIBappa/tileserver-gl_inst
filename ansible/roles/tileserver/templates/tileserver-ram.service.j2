@@ -9,7 +9,7 @@ Group={{ tileserver_user }}
 # Ensure MBTiles are copied into RAM disk before start
 ExecStartPre=/usr/bin/rsync -a {{ persistent_mbtiles_dir }}/ {{ ramdisk_mount_point }}/
 # Start tileserver-gl serving whatever MBTiles are in the RAM disk
-ExecStart=/usr/local/bin/tileserver-gl --port {{ tileserver_port }} {{ ramdisk_mount_point }}
+ExecStart=/usr/bin/node /usr/local/bin/tileserver-gl --port {{ tileserver_port }} {{ ramdisk_mount_point }}
 Restart=on-failure
 LimitNOFILE=65536
 

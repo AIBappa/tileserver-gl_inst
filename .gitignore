@@ -1,4 +1,3 @@
-
 *.mbtiles
 *.zip
 *.mypy_cache/
@@ -15,4 +14,4 @@ ansible/inventory.ini
 
 # Local deployment helper files
 deployment.md
-inventory.ini.sample
+# Keep example inventory in repo for users; do not ignore

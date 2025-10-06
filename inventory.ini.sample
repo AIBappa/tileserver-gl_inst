@@ -1,0 +1,10 @@
+[tileserver]
+localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+
+# Example group variables (uncomment and edit for your environment)
+#[tileserver:vars]
+# cloudflared_update_ingress=false
+# cloudflared_ingress_hostname=tileserver.example.com
+# cloudflared_ingress_path=/data/*
+# cloudflared_tiles_base_url=https://tileserver.example.com/data/{mbtiles}
+# tileserver_nginx_listen=127.0.0.1:8081

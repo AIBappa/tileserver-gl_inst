@@ -35,6 +35,7 @@ A) Local Deployment (Development/Testing)
 
     [tileserver]
     localhost ansible_connection=local
+    Note: For more details refer inventory.ini.sample in root directory.
 
   3. Run the playbook (it will prompt for sudo password):
 
@@ -60,6 +61,7 @@ A) Local Deployment (Development/Testing)
 
     [tileserver]
     your-remote-host ansible_user=ubuntu
+    Note: For more details refer inventory.ini.sample in root directory.
 
   3. To update an existing tunnel so `/data/*` or a hostname routes to your tileserver, run the playbook with extra-vars. Example (path-based ingress on an existing hostname):
 

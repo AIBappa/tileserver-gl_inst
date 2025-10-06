@@ -2,7 +2,7 @@ Quick Start
 ===================================================
 A) Local Deployment (Development/Testing)
   Prerequisites
-  nginx installed (sudo apt install nginx)
+  No manual prerequisites — the Ansible role will install and configure `nginx` when deploying the demo/web assets.
   
   No Cloudflare Tunnel required
   
@@ -63,11 +63,11 @@ A) Local Deployment (Development/Testing)
 
   3. To update an existing tunnel so `/data/*` or a hostname routes to your tileserver, run the playbook with extra-vars. Example (path-based ingress on an existing hostname):
 
-    ansible-playbook -i inventory.ini ansible/playbook.yml --become -e "cloudflared_update_ingress=true cloudflared_ingress_path='/data/*' cloudflared_tiles_base_url='https://your-existing-host.example.com/data'"
+    ansible-playbook -i inventory.ini ansible/playbook.yml --become -e "cloudflared_update_ingress=true cloudflared_ingress_path='/data/*' cloudflared_tiles_base_url='https://tileserver.example.com/data'"
 
     Or add a new hostname rule (if you manage that hostname in Cloudflare):
 
-    ansible-playbook -i inventory.ini ansible/playbook.yml --become -e "cloudflared_update_ingress=true cloudflared_ingress_hostname='tiles.example.com' cloudflared_tiles_base_url='https://tiles.example.com/data/{mbtiles}'"
+    ansible-playbook -i inventory.ini ansible/playbook.yml --become -e "cloudflared_update_ingress=true cloudflared_ingress_hostname='tileserver.example.com' cloudflared_tiles_base_url='https://tileserver.example.com/data/{mbtiles}'"
 
   Notes about the Cloudflare merge step
   - The role includes `scripts/merge_cloudflared_ingress.py` which safely edits `/etc/cloudflared/config.yml` (creates a timestamped backup). It requires the tunnel to already exist and a local `config.yml` present.

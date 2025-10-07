@@ -15,7 +15,7 @@
     "versatiles-shortbread": {
       "attribution": "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
       "tiles": [
-        "https://tileserver.vlifecycle.com/data/india-latest/{z}/{x}/{y}.pbf"
+        "https://tileserver.vlifecycle.com/data/v3/{z}/{x}/{y}.pbf"
       ],
       "type": "vector",
       "scheme": "xyz",

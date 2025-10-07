@@ -4,18 +4,18 @@
   "metadata": {
     "license": "https://creativecommons.org/publicdomain/zero/1.0/"
   },
-  "glyphs": "https://answerquest.github.io/india-vector-maps/local1-versatiles/assets/glyphs/{fontstack}/{range}.pbf",
+  "glyphs": "{fontstack}/{range}.pbf",
   "sprite": [
     {
       "id": "basics",
-      "url": "https://answerquest.github.io/india-vector-maps/local1-versatiles/assets/sprites/basics/sprites@2x"
+      "url": "{styleJsonFolder}/basics/sprites@2x"
     }
   ],
   "sources": {
     "versatiles-shortbread": {
       "attribution": "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
       "tiles": [
-        "https://tileserver.vlifecycle.com/data/india-latest/{z}/{x}/{y}.pbf"
+        "https://tileserver.vlifecycle.com/data/v3/{z}/{x}/{y}.pbf"
       ],
       "type": "vector",
       "scheme": "xyz",

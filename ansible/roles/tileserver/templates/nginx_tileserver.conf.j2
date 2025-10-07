@@ -47,6 +47,12 @@ server {
         try_files $uri $uri/ =404;
     }
 
+    # Style JSON files - add CORS headers for MapLibre GL JS compatibility
+    location ~* \.json$ {
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        try_files $uri =404;
+    }
+
     # Optional: prevent indexing
     location = /robots.txt {
         return 200 "User-agent: *\nDisallow: /\n";

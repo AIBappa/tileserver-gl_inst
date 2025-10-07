@@ -1,6 +1,6 @@
 {
   "version": 8,
-  "name": "versatiles-colorful",
+  "name": "colorful",
   "metadata": {
     "license": "https://creativecommons.org/publicdomain/zero/1.0/"
   },
@@ -8,7 +8,7 @@
   "sprite": [
     {
       "id": "basics",
-      "url": "https://tileserver.vlifecycle.com/local1-versatiles/basics/sprites@2x"
+      "url": "https://tileserver.vlifecycle.com/styles/colourful/sprites@2x"
     }
   ],
   "sources": {

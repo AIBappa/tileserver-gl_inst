@@ -89,18 +89,50 @@ def main():
 
             # Construct local tiles url template
             if args.base_url:
-                # If base_url contains {mbtiles} token, use it; otherwise append /{mbtiles}
-                if '{mbtiles}' in args.base_url:
-                    prefix = args.base_url.replace('{mbtiles}', mbname)
-                else:
-                    prefix = args.base_url.rstrip('/') + '/' + mbname
-                local_template = f"{prefix}/{{z}}/{{x}}/{{y}}.pbf"
+                # Use v3 endpoint which works correctly
+                base_host = args.base_url.replace('/data', '').rstrip('/')
+                local_template = f"{base_host}/data/v3/{{z}}/{{x}}/{{y}}.pbf"
             else:
-                local_template = f"http://localhost:{args.port}/data/{mbname}/{{z}}/{{x}}/{{y}}.pbf"
+                local_template = f"http://localhost:{args.port}/data/v3/{{z}}/{{x}}/{{y}}.pbf"
             source['tiles'] = [local_template]
             # prefer xyz scheme
             source['scheme'] = source.get('scheme', 'xyz')
             replaced.append(source_name)
+
+    # Update glyphs and sprite URLs to use local paths
+    if args.base_url:
+        # Extract the base host from base_url (remove /data suffix if present)
+        base_host = args.base_url.replace('/data', '').rstrip('/')
+        local_glyphs = f"{base_host}/fonts/{{fontstack}}/{{range}}.pbf"
+    else:
+        local_glyphs = f"http://localhost:{args.port}/fonts/{{fontstack}}/{{range}}.pbf"
+    
+    # Update glyphs URL
+    if 'glyphs' in style:
+        old_glyphs = style['glyphs']
+        style['glyphs'] = local_glyphs
+        print(f'Updated glyphs URL from {old_glyphs} to {local_glyphs}')
+
+    # Update sprite URLs
+    if 'sprite' in style:
+        if isinstance(style['sprite'], list):
+            for sprite_entry in style['sprite']:
+                if isinstance(sprite_entry, dict) and 'url' in sprite_entry:
+                    old_sprite = sprite_entry['url']
+                    if args.base_url:
+                        base_host = args.base_url.replace('/data', '').rstrip('/')
+                        sprite_entry['url'] = f"{base_host}/local1-versatiles/basics/sprites@2x"
+                    else:
+                        sprite_entry['url'] = f"http://localhost:{args.port}/local1-versatiles/basics/sprites@2x"
+                    print(f'Updated sprite URL from {old_sprite} to {sprite_entry["url"]}')
+        elif isinstance(style['sprite'], str):
+            old_sprite = style['sprite']
+            if args.base_url:
+                base_host = args.base_url.replace('/data', '').rstrip('/')
+                style['sprite'] = f"{base_host}/local1-versatiles/basics/sprites@2x"
+            else:
+                style['sprite'] = f"http://localhost:{args.port}/local1-versatiles/basics/sprites@2x"
+            print(f'Updated sprite URL from {old_sprite} to {style["sprite"]}')
 
     if replaced:
         print('Rewrote tile URLs for sources:', ', '.join(replaced))

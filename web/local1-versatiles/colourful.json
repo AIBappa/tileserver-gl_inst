@@ -541,7 +541,7 @@
       "layout": {
         "text-field": "{housenumber}",
         "text-font": [
-          "Open Sans Regular"
+          "noto_sans_regular"
         ],
         "text-size": 10
       },
@@ -1578,7 +1578,7 @@
         "text-anchor": "top",
         "text-field": "{name:latin}\n{name:nonlatin}",
         "text-font": [
-          "Open Sans Regular"
+          "noto_sans_regular"
         ],
         "text-max-width": 8,
         "text-offset": [
@@ -1613,7 +1613,7 @@
         "text-anchor": "top",
         "text-field": "{name:latin}\n{name:nonlatin}",
         "text-font": [
-          "Open Sans Regular"
+          "noto_sans_regular"
         ],
         "text-max-width": 8,
         "text-offset": [
@@ -1645,7 +1645,7 @@
         "symbol-placement": "line",
         "text-field": "{name:latin} {name:nonlatin}",
         "text-font": [
-          "Open Sans Regular"
+          "noto_sans_regular"
         ],
         "text-letter-spacing": 0.1,
         "text-rotation-alignment": "map",
@@ -1697,7 +1697,7 @@
         "text-anchor": "center",
         "text-field": "{name:latin}\n{name:nonlatin}",
         "text-font": [
-          "Open Sans Regular"
+          "noto_sans_regular"
         ],
         "text-max-width": 6,
         "text-size": {
@@ -1743,7 +1743,7 @@
       "layout": {
         "text-field": "{name:latin}\n{name:nonlatin}",
         "text-font": [
-          "Open Sans Regular"
+          "noto_sans_regular"
         ],
         "text-max-width": 10,
         "text-size": {
@@ -1792,7 +1792,7 @@
       "layout": {
         "text-field": "{name:latin}",
         "text-font": [
-          "Open Sans Regular"
+          "noto_sans_regular"
         ],
         "text-max-width": 10,
         "text-size": {

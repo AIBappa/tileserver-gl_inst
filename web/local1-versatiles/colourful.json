@@ -47,6 +47,15 @@
         "background-color": "hsl(47, 26%, 88%)"
       }
     },
+        {
+      "id": "bhuvan-states",
+      "type": "line",
+      "source": "bhuvan-states",
+      "source-layer": "bhuvan_states",
+      "paint": {
+        "line-color": "rgba(210, 210, 210, 1)"
+      }
+    },
     {
       "id": "landuse-residential",
       "type": "fill",

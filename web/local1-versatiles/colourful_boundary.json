@@ -53,8 +53,10 @@
       "source": "bhuvan-states",
       "source-layer": "bhuvan_states",
       "paint": {
-        "line-color": "rgba(210, 210, 210, 1)"
-      }
+        "line-color": "rgba(60, 60, 180, 1)",          // Stronger color (blue-ish)
+        "line-width": 4,                                // Make line 4px width (change to suit zoom)
+        "line-opacity": 1                               // Fully opaque
+    }
     },
     {
       "id": "landuse-residential",

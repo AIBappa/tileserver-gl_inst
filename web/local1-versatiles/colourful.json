@@ -1842,7 +1842,7 @@
       "layout": {
         "text-field": "{name:latin}",
         "text-font": [
-          "Open Sans Bold"
+          "noto_sans_regular" 
         ],
         "text-max-width": 10,
         "text-size": {

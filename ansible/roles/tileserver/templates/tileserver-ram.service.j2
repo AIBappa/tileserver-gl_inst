@@ -14,10 +14,11 @@ Group={{ tileserver_user }}
 # Ensure MBTiles are copied into RAM disk before start
 ExecStartPre=/usr/bin/rsync -a {{ persistent_mbtiles_dir }}/ {{ ramdisk_mount_point }}/
 {% if tileserver_deploy_method == 'docker' %}ExecStartPre=-/usr/bin/docker rm -f tileserver-gl
-ExecStart=/usr/bin/docker run --name tileserver-gl --pull=always --rm --publish {{ tileserver_docker_bind_address }}:{{ tileserver_port }}:{{ tileserver_port }} --volume {{ ramdisk_mount_point }}:/data:ro{% if tileserver_docker_extra_args %} {{ tileserver_docker_extra_args | join(' ') }}{% endif %} {{ tileserver_docker_image }} --port {{ tileserver_port }} /data
+ExecStart=/usr/bin/docker run --name tileserver-gl --pull=always --rm --publish {{ tileserver_docker_bind_address }}:{{ tileserver_port }}:{{ tileserver_port }} --volume {{ ramdisk_mount_point }}:/data:ro --volume /var/lib/tileserver:/app:ro{% if tileserver_docker_extra_args %} {{ tileserver_docker_extra_args | join(' ') }}{% endif %} {{ tileserver_docker_image }} --port {{ tileserver_port }} --config /app/config.json
 ExecStop=/usr/bin/docker stop tileserver-gl
-{% else %}# Start tileserver-gl serving whatever MBTiles are in the RAM disk
-ExecStart=/usr/bin/tileserver-gl --port {{ tileserver_port }} {{ ramdisk_mount_point }}
+{% else %}# Start tileserver-gl with config.json
+WorkingDirectory=/var/lib/tileserver
+ExecStart=/usr/bin/tileserver-gl --port {{ tileserver_port }} --config config.json
 {% endif %}
 Restart=on-failure
 LimitNOFILE=65536

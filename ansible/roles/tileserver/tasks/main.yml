@@ -314,6 +314,7 @@
         owner: "{{ tileserver_user }}"
         group: "{{ tileserver_user }}"
         mode: '0644'
+      notify: restart tileserver
 
     - name: Deploy styles directory to target
       synchronize:
@@ -322,6 +323,7 @@
         delete: yes
         recursive: yes
       delegate_to: localhost
+      notify: restart tileserver
 
     - name: Deploy fonts directory to target
       synchronize:
@@ -330,6 +332,7 @@
         delete: yes
         recursive: yes
       delegate_to: localhost
+      notify: restart tileserver
 
     - name: Set ownership for deployed directories
       file:
@@ -363,6 +366,42 @@
         group: "{{ tileserver_user }}"
         recurse: yes
       when: web_directory_exists.stat.exists | default(false)
+
+    - name: Parse styles to extract sprite directories
+      set_fact:
+        style_sprite_info: >-
+          {%- set result = [] -%}
+          {%- for style_name, style_config in config_json_content.styles.items() -%}
+            {%- set style_path = style_config.style -%}
+            {%- set style_dir = style_path | dirname -%}
+            {%- set _ = result.append({'name': style_name, 'dir': style_dir}) -%}
+          {%- endfor -%}
+          {{ result }}
+      delegate_to: localhost
+      run_once: true
+
+    - name: Copy sprite files from styles to web directory
+      shell: |
+        # Create web subdirectory for this style if needed
+        mkdir -p /var/lib/tileserver/web/{{ item.dir }}
+        # Copy all sprite files (*.png, *.json matching sprite pattern)
+        if [ -d "{{ playbook_dir }}/../{{ tileserver_styles_dir }}/{{ item.dir }}" ]; then
+          find "{{ playbook_dir }}/../{{ tileserver_styles_dir }}/{{ item.dir }}" -maxdepth 1 \( -name 'sprite*.png' -o -name 'sprite*.json' \) -exec cp {} /var/lib/tileserver/web/{{ item.dir }}/ \; 2>/dev/null || true
+        fi
+      loop: "{{ style_sprite_info }}"
+      args:
+        executable: /bin/bash
+      become: true
+      changed_when: false
+
+    - name: Set ownership for sprite files in web directory
+      file:
+        path: "/var/lib/tileserver/web/{{ item.dir }}"
+        owner: "{{ tileserver_user }}"
+        group: "{{ tileserver_user }}"
+        recurse: yes
+      loop: "{{ style_sprite_info }}"
+      become: true
   when: use_config_json_styles | default(false)
 
 - name: Handle Cloudflare tunnel configuration

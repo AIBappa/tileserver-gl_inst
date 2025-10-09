@@ -27,8 +27,8 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
     }
 
-    # Proxy tiles requests to tileserver and set CORS headers
-    location /data/ {
+    # Proxy tiles requests to tileserver and set CORS headers (use ^~ to take precedence over regex .json rule)
+    location ^~ /data/ {
         # Respond to preflight requests quickly
         if ($request_method = 'OPTIONS') {
             add_header 'Access-Control-Allow-Origin' '*' always;

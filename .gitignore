@@ -20,3 +20,4 @@ local-files/
 
 #Ignore generated style file
 styles/colourful/colourful.json
+styles/colourful/style.json

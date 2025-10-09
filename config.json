@@ -7,30 +7,18 @@
   },
   "styles": {
     "test-style": {
-      "style": "osm-bright/style.json",
-      "tilejson": {
-        "type": "overlay",
-        "bounds": [69, 6, 96, 34]
-      }
+      "style": "osm-bright/style.json"
     },
     "maptiler-basic": {
-      "style": "maptiler-basic/style.json",
-      "tilejson": {
-        "type": "overlay",
-        "bounds": [69, 6, 96, 34]
-      }
+      "style": "maptiler-basic/style.json"
     },
     "colourful": {
-      "style": "colourful/colourful.json",
-      "tilejson": {
-        "type": "overlay",
-        "bounds": [68, 6, 98, 36]
-      }
+      "style": "colourful/style.json"
     }
   },
   "data": {
     "openmaptiles": {
-      "mbtiles": "india-latest.mbtiles"
+      "mbtiles": "/data/india-latest.mbtiles"
     }
   }
 }

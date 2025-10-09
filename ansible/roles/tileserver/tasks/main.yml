@@ -263,135 +263,97 @@
     - tileserver_deploy_method == 'native'
     - npm_install_result.changed
 
-- name: Prepare and generate local style on control (optional)
+- name: Deploy config.json-based styles (recommended approach)
   block:
-    - name: Ensure style rewrite is enabled
-      assert:
-        that: "style_rewrite_enabled"
-        fail_msg: "Style rewrite is disabled (style_rewrite_enabled=false). Skipping generation."
-
-    - name: Create mapping file on control for rewire script
-      copy:
-        content: "{{ style_source_mapping | to_nice_json }}"
-        dest: "{{ playbook_dir }}/../scripts/style_mapping.json"
-      delegate_to: localhost
-      run_once: true
-
-    - name: Run style rewriter on control to produce the local style
-      command: >
-        python3 {{ playbook_dir }}/../scripts/rewire_style.py
-        --mapping-file {{ playbook_dir }}/../scripts/style_mapping.json
-        --output {{ playbook_dir }}/../{{ style_output_path }}
-        {% if cloudflared_tiles_base_url != '' %}--base-url '{{ cloudflared_tiles_base_url }}'{% else %}--port {{ tileserver_port }}{% endif %}
-      delegate_to: localhost
-      run_once: true
-
-    - name: Ensure deploy directory exists on target
-      file:
-        path: "{{ style_deploy_dir }}/{{ style_deploy_subdir }}"
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-
-    - name: Copy generated style from control to target's web directory
-      copy:
-        src: "{{ playbook_dir }}/../{{ style_output_path }}"
-        dest: "{{ style_deploy_dir }}/{{ style_deploy_subdir }}/{{ style_output_path | basename }}"
-        owner: root
-        group: root
-        mode: '0644'
-      when: style_rewrite_enabled
-
-    - name: Derive Cloudflare public origin from tiles base URL
-      when:
-        - style_rewrite_enabled
-        - cloudflared_tiles_base_url is defined
-        - cloudflared_tiles_base_url | length > 0
+    - name: Read config.json to extract styles configuration
       set_fact:
-        cloudflared_tiles_base_origin: "{{ cloudflared_tiles_base_url | regex_replace('(/data.*)?$', '') }}"
+        config_json_content: "{{ lookup('file', playbook_dir + '/../' + config_json_path) | from_json }}"
+      delegate_to: localhost
+      run_once: true
 
-    - name: Rewrite deployed style JSON to use cloudflared_tiles_base_url if configured
-      when:
-        - style_rewrite_enabled
-        - cloudflared_tiles_base_url is defined
-        - cloudflared_tiles_base_url | length > 0
-      replace:
-        path: "{{ style_deploy_dir }}/{{ style_deploy_subdir }}/{{ style_output_path | basename }}"
-        regexp: "http://127\\.0\\.0\\.1(:[0-9]+)?"
-        replace: "{{ cloudflared_tiles_base_origin }}"
-      notify: restart nginx
+    - name: Extract styles directory path from config.json
+      set_fact:
+        styles_directory: "{{ config_json_content.options.paths.styles }}"
+        fonts_directory: "{{ config_json_content.options.paths.fonts }}"
+        available_styles: "{{ config_json_content.styles.keys() | list }}"
+      delegate_to: localhost
+      run_once: true
 
-    - name: Find any deployed JSON files under the web directory
-      find:
-        paths: "{{ style_deploy_dir }}"
-        patterns: "*.json"
-        recurse: yes
-      register: deployed_json_files
-      when:
-        - style_rewrite_enabled
-        - cloudflared_tiles_base_url is defined
-        - cloudflared_tiles_base_url | length > 0
+    - name: Determine default style (last in config.json styles list)
+      set_fact:
+        default_style_name: "{{ available_styles[-1] }}"
+        default_style_config: "{{ config_json_content.styles[available_styles[-1]] }}"
+      delegate_to: localhost
+      run_once: true
 
-    - name: Replace localhost tile/sprite/glyph URLs in all deployed JSON files
-      when:
-        - deployed_json_files is defined
-        - deployed_json_files.files | length > 0
-      replace:
-        path: "{{ item.path }}"
-        regexp: "http://127\\.0\\.0\\.1(:[0-9]+)?"
-        replace: "{{ cloudflared_tiles_base_origin }}"
-      loop: "{{ deployed_json_files.files }}"
-      notify: restart nginx
+    - name: Display discovered configuration
+      debug:
+        msg:
+          - "Styles directory: {{ styles_directory }}"
+          - "Fonts directory: {{ fonts_directory }}"
+          - "Available styles: {{ available_styles }}"
+          - "Default style: {{ default_style_name }}"
 
-    - name: Check if maptiler-basic style is deployed
-      stat:
-        path: "{{ style_deploy_dir }}/maptiler-basic_local.json"
-      register: maptiler_style_stat
-      when: style_rewrite_enabled
-
-    - name: Update maptiler-basic tile endpoint for Cloudflare hostname
-      when:
-        - style_rewrite_enabled
-        - maptiler_style_stat.stat.exists | default(false)
-        - cloudflared_tiles_base_origin is defined
-      replace:
-        path: "{{ style_deploy_dir }}/maptiler-basic_local.json"
-        regexp: '"tiles": \[[^\]]+\]'
-        replace: '"tiles": [\n        "{{ cloudflared_tiles_base_origin }}/data/v3/{z}/{x}/{y}.pbf"\n      ]'
-      notify: restart nginx
-
-    - name: Update maptiler-basic sprite endpoint for Cloudflare hostname
-      when:
-        - style_rewrite_enabled
-        - maptiler_style_stat.stat.exists | default(false)
-        - cloudflared_tiles_base_origin is defined
-      replace:
-        path: "{{ style_deploy_dir }}/maptiler-basic_local.json"
-        regexp: '"sprite": "[^"]+"'
-        replace: '"sprite": "{{ cloudflared_tiles_base_origin }}/maptiler-basic/sprite"'
-      notify: restart nginx
-
-    - name: Update maptiler-basic glyph endpoint for Cloudflare hostname
-      when:
-        - style_rewrite_enabled
-        - maptiler_style_stat.stat.exists | default(false)
-        - cloudflared_tiles_base_origin is defined
-      replace:
-        path: "{{ style_deploy_dir }}/maptiler-basic_local.json"
-        regexp: '"glyphs": "[^"]+"'
-        replace: '"glyphs": "{{ cloudflared_tiles_base_origin }}/fonts/{fontstack}/{range}.pbf"'
-      notify: restart nginx
-
-    - name: Copy example map.html to target web directory so it can reference the local style
+    - name: Deploy config.json to target
       copy:
-        src: "{{ playbook_dir }}/../web/map.html"
-        dest: "{{ style_deploy_dir }}/map.html"
-        owner: root
-        group: root
+        src: "{{ playbook_dir }}/../{{ config_json_path }}"
+        dest: "/var/lib/tileserver/{{ config_json_path }}"
+        owner: "{{ tileserver_user }}"
+        group: "{{ tileserver_user }}"
         mode: '0644'
-      when: style_rewrite_enabled
 
+    - name: Deploy styles directory to target
+      synchronize:
+        src: "{{ playbook_dir }}/../{{ styles_directory }}/"
+        dest: "/var/lib/tileserver/{{ styles_directory }}/"
+        delete: yes
+        recursive: yes
+      delegate_to: localhost
+
+    - name: Deploy fonts directory to target
+      synchronize:
+        src: "{{ playbook_dir }}/../{{ fonts_directory }}/"
+        dest: "/var/lib/tileserver/{{ fonts_directory }}/"
+        delete: yes
+        recursive: yes
+      delegate_to: localhost
+
+    - name: Set ownership for deployed directories
+      file:
+        path: "/var/lib/tileserver/{{ item }}"
+        owner: "{{ tileserver_user }}"
+        group: "{{ tileserver_user }}"
+        recurse: yes
+      loop:
+        - "{{ styles_directory }}"
+        - "{{ fonts_directory }}"
+
+    - name: Check if web directory exists
+      stat:
+        path: "{{ playbook_dir }}/../web"
+      register: web_directory_exists
+      delegate_to: localhost
+
+    - name: Deploy web directory for static assets (sprites, etc.)
+      synchronize:
+        src: "{{ playbook_dir }}/../web/"
+        dest: "/var/lib/tileserver/web/"
+        delete: yes
+        recursive: yes
+      delegate_to: localhost
+      when: web_directory_exists.stat.exists | default(false)
+
+    - name: Set ownership for web directory
+      file:
+        path: "/var/lib/tileserver/web"
+        owner: "{{ tileserver_user }}"
+        group: "{{ tileserver_user }}"
+        recurse: yes
+      when: web_directory_exists.stat.exists | default(false)
+  when: use_config_json_styles | default(false)
+
+- name: Handle Cloudflare tunnel configuration
+  block:
     - name: Copy cloudflared ingress merge script to target (if updating existing tunnel)
       copy:
         src: "{{ playbook_dir }}/../scripts/merge_cloudflared_ingress.py"
@@ -424,7 +386,7 @@
         state: restarted
         daemon_reload: yes
       when: cloudflared_update_ingress and (merge_result.stdout is defined and 'MODIFIED' in merge_result.stdout)
-  when: style_rewrite_enabled
+  when: use_config_json_styles | default(false)
 
 - name: Install and configure a simple web server (nginx)
   block:
@@ -462,7 +424,7 @@
         enabled: yes
         state: started
         daemon_reload: yes
-  when: style_rewrite_enabled
+  when: use_config_json_styles | default(false)
 
 - name: Deploy tileserver systemd service
   template:

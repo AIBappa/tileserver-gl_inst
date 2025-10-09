@@ -12,8 +12,8 @@
     // Local tileserver-style URL
     var map = new maplibregl.Map({
       container: 'map',
-      // Use the rewritten local full style if present. Run scripts/rewire_style.py to generate this.
-      style: './maptiler-basic_local.json',
+      // Use the colourful style served by TileServer GL via config.json
+      style: 'https://bharat-tileserver-gl.vlifecycle.com/styles/colourful.json',
       center: [78.9629, 20.5937],
       zoom: 4,
       hash: true,

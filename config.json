@@ -20,7 +20,7 @@
         "bounds": [69, 6, 96, 34]
       }
     },
-    "colorful": {
+    "colourful": {
       "style": "colourful/colourful.json",
       "tilejson": {
         "type": "overlay",

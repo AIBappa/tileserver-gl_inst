@@ -1,5 +1,47 @@
 ---
-# Main tasks for tileserver role - implemented in later todos
+# Main tasks for tileserver role
+
+- name: Load and parse configuration from single sources of truth
+  block:
+    - name: Read config.json to extract TileServer GL configuration
+      set_fact:
+        config_json_content: "{{ lookup('file', playbook_dir + '/../' + config_json_path) | from_json }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Derive TileServer GL configuration from config.json
+      set_fact:
+        # Paths from config.json
+        tileserver_styles_dir: "{{ config_json_content.options.paths.styles }}"
+        tileserver_fonts_dir: "{{ config_json_content.options.paths.fonts }}"
+        # Available styles and data sources
+        available_styles: "{{ config_json_content.styles.keys() | list }}"
+        available_data_sources: "{{ config_json_content.data.keys() | list }}"
+        # Default style (last in config.json styles list)
+        default_style_name: "{{ config_json_content.styles.keys() | list | last }}"
+        # MBTiles files from data sources
+        mbtiles_files_from_config: "{{ config_json_content.data.values() | selectattr('mbtiles', 'defined') | map(attribute='mbtiles') | list }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Build full paths for MBTiles files
+      set_fact:
+        mbtiles_files: "{{ mbtiles_files_from_config | map('regex_replace', '^(.*)$', playbook_dir + '/../\\1') | list }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Display discovered configuration
+      debug:
+        msg:
+          - "Config.json path: {{ config_json_path }}"
+          - "TileServer GL styles directory: {{ tileserver_styles_dir }}"
+          - "TileServer GL fonts directory: {{ tileserver_fonts_dir }}"
+          - "Available styles: {{ available_styles }}"
+          - "Default style: {{ default_style_name }}"
+          - "Available data sources: {{ available_data_sources }}"
+          - "MBTiles files discovered: {{ mbtiles_files_from_config }}"
+          - "Cloudflare hostname (from inventory): {{ cloudflared_ingress_hostname | default('not set') }}"
+          - "Cloudflare tiles base URL (from inventory): {{ cloudflared_tiles_base_url | default('not set') }}"
 
 - name: Extend sudo timeout to prevent password re-prompts
   lineinfile:
@@ -265,35 +307,6 @@
 
 - name: Deploy config.json-based styles (recommended approach)
   block:
-    - name: Read config.json to extract styles configuration
-      set_fact:
-        config_json_content: "{{ lookup('file', playbook_dir + '/../' + config_json_path) | from_json }}"
-      delegate_to: localhost
-      run_once: true
-
-    - name: Extract styles directory path from config.json
-      set_fact:
-        styles_directory: "{{ config_json_content.options.paths.styles }}"
-        fonts_directory: "{{ config_json_content.options.paths.fonts }}"
-        available_styles: "{{ config_json_content.styles.keys() | list }}"
-      delegate_to: localhost
-      run_once: true
-
-    - name: Determine default style (last in config.json styles list)
-      set_fact:
-        default_style_name: "{{ available_styles[-1] }}"
-        default_style_config: "{{ config_json_content.styles[available_styles[-1]] }}"
-      delegate_to: localhost
-      run_once: true
-
-    - name: Display discovered configuration
-      debug:
-        msg:
-          - "Styles directory: {{ styles_directory }}"
-          - "Fonts directory: {{ fonts_directory }}"
-          - "Available styles: {{ available_styles }}"
-          - "Default style: {{ default_style_name }}"
-
     - name: Deploy config.json to target
       copy:
         src: "{{ playbook_dir }}/../{{ config_json_path }}"
@@ -304,16 +317,16 @@
 
     - name: Deploy styles directory to target
       synchronize:
-        src: "{{ playbook_dir }}/../{{ styles_directory }}/"
-        dest: "/var/lib/tileserver/{{ styles_directory }}/"
+        src: "{{ playbook_dir }}/../{{ tileserver_styles_dir }}/"
+        dest: "/var/lib/tileserver/{{ tileserver_styles_dir }}/"
         delete: yes
         recursive: yes
       delegate_to: localhost
 
     - name: Deploy fonts directory to target
       synchronize:
-        src: "{{ playbook_dir }}/../{{ fonts_directory }}/"
-        dest: "/var/lib/tileserver/{{ fonts_directory }}/"
+        src: "{{ playbook_dir }}/../{{ tileserver_fonts_dir }}/"
+        dest: "/var/lib/tileserver/{{ tileserver_fonts_dir }}/"
         delete: yes
         recursive: yes
       delegate_to: localhost
@@ -325,8 +338,8 @@
         group: "{{ tileserver_user }}"
         recurse: yes
       loop:
-        - "{{ styles_directory }}"
-        - "{{ fonts_directory }}"
+        - "{{ tileserver_styles_dir }}"
+        - "{{ tileserver_fonts_dir }}"
 
     - name: Check if web directory exists
       stat:

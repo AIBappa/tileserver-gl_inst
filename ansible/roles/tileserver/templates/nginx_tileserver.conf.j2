@@ -49,8 +49,8 @@ server {
         add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
     }
 
-    # Proxy TileServer GL styles to enable CORS
-    location /styles/ {
+    # Proxy TileServer GL styles to enable CORS (use ^~ to take precedence over regex .json rule)
+    location ^~ /styles/ {
         proxy_pass http://127.0.0.1:{{ tileserver_port }}/styles/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

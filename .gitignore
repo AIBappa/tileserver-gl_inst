@@ -14,8 +14,9 @@ ansible/inventory.ini
 
 # Local deployment helper files
 deployment.md
-# Keep example inventory in repo for users; do not ignore
 
 # Ignore local-files
 local-files/
 
+#Ignore generated style file
+styles/colourful/colourful.json

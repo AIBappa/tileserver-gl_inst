@@ -10,14 +10,21 @@
       "style": "osm-bright/style.json",
       "tilejson": {
         "type": "overlay",
-        "bounds": [8.529446, 47.364758, 8.55232, 47.380539]
+        "bounds": [69, 6, 96, 34]
       }
     },
     "maptiler-basic": {
       "style": "maptiler-basic/style.json",
       "tilejson": {
         "type": "overlay",
-        "bounds": [8.529446, 47.364758, 8.55232, 47.380539]
+        "bounds": [69, 6, 96, 34]
+      }
+    },
+    "colorful": {
+      "style": "colourful/colourful.json",
+      "tilejson": {
+        "type": "overlay",
+        "bounds": [68, 6, 98, 36]
       }
     }
   },

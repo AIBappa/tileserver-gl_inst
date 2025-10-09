@@ -16,7 +16,7 @@ server {
 
     server_name _;
 
-    root {{ style_deploy_dir }};
+    root /var/lib/tileserver/web;
 
     # Serve static web content under / (map.html is copied to /map.html)
     location / {
@@ -49,10 +49,29 @@ server {
         add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
     }
 
+    # Proxy TileServer GL styles to enable CORS
+    location /styles/ {
+        proxy_pass http://127.0.0.1:{{ tileserver_port }}/styles/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_buffering off;
+
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Origin, Accept, Accept-Encoding, Authorization, Content-Type' always;
+    }
+
     # Sprites and style files - ensure CORS so browser can load sprite.json/png
     location /maptiler-basic/ {
         add_header 'Access-Control-Allow-Origin' '*' always;
         try_files $uri $uri/ =404;
+    }
+
+    # JSON files (styles served statically) - ensure CORS
+    location ~* \.json$ {
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+        try_files $uri =404;
     }
 
     # Fonts (glyphs)

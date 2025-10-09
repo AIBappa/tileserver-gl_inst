@@ -14,12 +14,12 @@
       "type": "vector",
       "url": "mbtiles://{openmaptiles}",
       "tiles": [
-        "http://127.0.0.1:8081/data/v3/{z}/{x}/{y}.pbf"
+        "https://bharat-tileserver-gl.vlifecycle.com/data/v3/{z}/{x}/{y}.pbf"
       ]
     }
   },
-  "sprite": "{styleJsonFolder}/sprite",
-  "glyphs": "{fontstack}/{range}.pbf",
+  "sprite": "https://bharat-tileserver-gl.vlifecycle.com/maptiler-basic/sprite",
+  "glyphs": "https://bharat-tileserver-gl.vlifecycle.com/fonts/{fontstack}/{range}.pbf",
   "layers": [
     {
       "id": "background",

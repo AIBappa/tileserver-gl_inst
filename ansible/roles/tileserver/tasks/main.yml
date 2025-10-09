@@ -383,10 +383,10 @@
         replace: '"glyphs": "{{ cloudflared_tiles_base_origin }}/fonts/{fontstack}/{range}.pbf"'
       notify: restart nginx
 
-    - name: Copy example map2.html to target web directory so it can reference the local style
+    - name: Copy example map.html to target web directory so it can reference the local style
       copy:
-        src: "{{ playbook_dir }}/../web/map2.html"
-        dest: "{{ style_deploy_dir }}/map2.html"
+        src: "{{ playbook_dir }}/../web/map.html"
+        dest: "{{ style_deploy_dir }}/map.html"
         owner: root
         group: root
         mode: '0644'

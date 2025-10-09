@@ -43,12 +43,12 @@ A) Local Deployment (Development/Testing)
 
   4. After the play finishes, the demo and tile endpoints are available (default nginx port 80):
 
-    - Demo page: http://localhost/map2.html
+    - Demo page: http://localhost/map.html
     - Tile API:   http://localhost/data/{mbtiles}/{z}/{x}/{y}.pbf
 
     If nginx is bound to a custom port (e.g. 8081): include the port in the URL:
 
-    - Demo: http://localhost:8081/map2.html
+    - Demo: http://localhost:8081/map.html
     - Tiles: http://localhost:8081/data/{mbtiles}/{z}/{x}/{y}.pbf
 
   B) Remote / public deployment (Cloudflare Tunnel)

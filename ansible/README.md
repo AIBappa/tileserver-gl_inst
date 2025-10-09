@@ -24,8 +24,8 @@ Notes and configuration
 - The systemd service `tileserver-ram-sync.service` runs at boot to keep the RAM disk populated from the persistent directory.
 - The tileserver systemd service is `tileserver-ram.service` and will start tileserver-gl serving files from the RAM disk at the configured port (default 8080).
 
-map2.html and style
-- A sample `web/map2.html` and a simplified `web/local1-versatiles/boundary_style.json` were added. The style references a local vector tile endpoint at `http://localhost:8080/data/india-latest/{z}/{x}/{y}.pbf` — adjust the style's source URLs if your tiles are named differently when served by tileserver-gl.
+map.html and style
+- A sample `web/map.html` and a simplified `web/local1-versatiles/boundary_style.json` were added. The style references a local vector tile endpoint at `http://localhost:8080/data/india-latest/{z}/{x}/{y}.pbf` — adjust the style's source URLs if your tiles are named differently when served by tileserver-gl.
 
 Caveats
 - tmpfs is ephemeral: if the machine reboots, MBTiles are restored from the persistent directory by the sync service.

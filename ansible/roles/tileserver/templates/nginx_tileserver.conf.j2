@@ -27,7 +27,7 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
     }
 
-    # Proxy tiles requests to tileserver and set CORS headers (use ^~ to take precedence over regex .json rule)
+    # Proxy tiles requests to tileserver (TileServer-GL handles CORS)
     location ^~ /data/ {
         # Respond to preflight requests quickly
         if ($request_method = 'OPTIONS') {
@@ -42,11 +42,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_buffering off;
-
-        add_header 'Access-Control-Allow-Origin' '*' always;
-        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
-        add_header 'Access-Control-Allow-Headers' 'Origin, Accept, Accept-Encoding, Authorization, Content-Type, Range' always;
-        add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
+        # No additional CORS headers needed - TileServer-GL handles CORS
     }
 
     # Proxy TileServer GL styles (TileServer-GL already sends CORS headers)
@@ -58,14 +54,16 @@ server {
         # No additional CORS headers needed - TileServer-GL handles CORS
     }
 
-    # Sprites and style files - ensure CORS so browser can load sprite.json/png
-    location /maptiler-basic/ {
+    # Sprites and style files - ensure CORS so browser can load sprite.json/png from any style directory
+    location ~ ^/(maptiler-basic|colourful|osm-bright)/ {
         add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
         try_files $uri $uri/ =404;
     }
 
     # JSON files (styles served statically) - ensure CORS
     location ~* \.json$ {
+        add_header 'Access-Control-Allow-Origin' '*' always;
         add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
         try_files $uri =404;
     }

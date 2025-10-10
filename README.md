@@ -2,102 +2,115 @@ Quick Start
 ===================================================
 A) Local Deployment (Development/Testing)
   Prerequisites
-  No manual prerequisites — the Ansible role will install and configure `nginx` when deploying the demo/web assets.
+  No manual prerequisites — the Ansible role will install and configure `nginx`, `docker`, and TileServer-GL automatically.
   
   No Cloudflare Tunnel required
   
-  MBTiles files placed in /var/lib/tileserver/mbtiles (default, check within Ansible role or config)
-
-  # tileserver-gl_inst — quick deploy with RAM-disk + Cloudflare Tunnel
-
-  This project provides an Ansible role and helper scripts to deploy TileServer GL with MBTiles mounted into a RAM disk for fast serving. The role defaults to running TileServer inside Docker to avoid native build issues, but a native npm-based mode is supported.
-
-  Contents
-  - ansible/: playbook + role to deploy tileserver, nginx, and optional Cloudflare Tunnel ingress changes
-  - web/: demo pages and generated styles
-  - scripts/: helpers (style rewriter, cloudflared ingress merge)
-
-  Quick start (local development)
-  1. Put MBTiles in the repository (or into the target host persistent dir):
-
-     - Default persistent path on target: `/var/lib/tileserver/mbtiles`
-
-     You can also list MBTiles in `config.json` so the playbook and helper scripts know which files to deploy. Example `config.json` snippet:
-
+  Process:
+  1. Place MBTiles files in the repository root (they will be copied to `/var/lib/tileserver/mbtiles`)
+  
+  2. Configure `config.json` for TileServer-GL according to https://tileserver.readthedocs.io/en/latest/config.html
+     Example:
+     ```json
      {
-       "mbtiles_files": [
-         "india-latest.mbtiles",
-         "zurich_switzerland.mbtiles"
-       ]
+       "options": {
+         "paths": {
+           "fonts": "fonts",
+           "styles": "styles"
+         }
+       },
+       "styles": {
+         "your-style": {
+           "style": "your-style-directory/style.json"
+         }
+       },
+       "data": {
+         "your-data": {
+           "mbtiles": "your-mbtiles-file.mbtiles"
+         }
+       }
      }
-
-  2. Example `inventory.ini` (local host):
-
-    [tileserver]
-    localhost ansible_connection=local
-    Note: For more details refer inventory.ini.sample in root directory.
-
-  3. Run the playbook (it will prompt for sudo password):
-
-    ansible-playbook -i inventory.ini ansible/playbook.yml --ask-become-pass
-
-  4. After the play finishes, the demo and tile endpoints are available (default nginx port 80):
-
-    - Demo page: http://localhost/map.html
-    - Tile API:   http://localhost/data/{mbtiles}/{z}/{x}/{y}.pbf
-
-    If nginx is bound to a custom port (e.g. 8081): include the port in the URL:
-
-    - Demo: http://localhost:8081/map.html
-    - Tiles: http://localhost:8081/data/{mbtiles}/{z}/{x}/{y}.pbf
+     ```
+  
+  3. Configure `inventory.ini` (copy from `inventory.ini.sample`):
+     ```ini
+     [tileserver]
+     localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+     
+     [tileserver:vars]
+     config_json_path=config.json
+     use_config_json_styles=true
+     tileserver_nginx_listen=127.0.0.1:8081
+     ```
+  
+  4. Run the playbook:
+     ```bash
+     ansible-playbook -i inventory.ini ansible/playbook.yml --ask-become-pass
+     ```
+  
+  5. Access the demo:
+     - Demo page: http://localhost:8081/map.html (if using custom port)
+     - Tile API: http://localhost:8081/data/v3/{z}/{x}/{y}.pbf
 
   B) Remote / public deployment (Cloudflare Tunnel)
-  1. Prerequisites on target server:
-    - `cloudflared` installed and a tunnel already configured (the role can *update* an existing config; it does not create tunnels)
-    - `nginx` installed (role can install it)
-    - MBTiles present in `/var/lib/tileserver/mbtiles`
+  Prerequisites on target server:
+  - `cloudflared` installed and a tunnel already configured (the role can *update* an existing config; it does not create tunnels)
+  - MBTiles present in the repository or target host
+  - `config.json` configured for TileServer-GL
+  
+  Process:
+  1. Place MBTiles files in the repository root
+  
+  2. Configure `config.json` for TileServer-GL (see TileServer-GL documentation)
+  
+  3. Configure `inventory.ini` for remote host with Cloudflare settings:
+     ```ini
+     [tileserver]
+     your-remote-host ansible_user=ubuntu
+     
+     [tileserver:vars]
+     config_json_path=config.json
+     use_config_json_styles=true
+     cloudflared_update_ingress=true
+     cloudflared_ingress_hostname=your-tileserver-domain.com
+     cloudflared_ingress_path=/data/*
+     cloudflared_tiles_base_url=https://your-tileserver-domain.com/data
+     tileserver_nginx_listen=127.0.0.1:8081
+     ```
+  
+  4. Run the playbook:
+     ```bash
+     ansible-playbook -i inventory.ini ansible/playbook.yml --ask-become-pass
+     ```
+  
+  5. Access via your Cloudflare tunnel hostname
 
-  2. Example inventory for remote host (replace placeholders):
-
-    [tileserver]
-    your-remote-host ansible_user=ubuntu
-    Note: For more details refer inventory.ini.sample in root directory.
-
-  3. To update an existing tunnel so `/data/*` or a hostname routes to your tileserver, run the playbook with extra-vars. Example (path-based ingress on an existing hostname):
-
-    ansible-playbook -i inventory.ini ansible/playbook.yml --become -e "cloudflared_update_ingress=true cloudflared_ingress_path='/data/*' cloudflared_tiles_base_url='https://tileserver.example.com/data'"
-
-    Or add a new hostname rule (if you manage that hostname in Cloudflare):
-
-    ansible-playbook -i inventory.ini ansible/playbook.yml --become -e "cloudflared_update_ingress=true cloudflared_ingress_hostname='tileserver.example.com' cloudflared_tiles_base_url='https://tileserver.example.com/data/{mbtiles}'"
-
-  Notes about the Cloudflare merge step
-  - The role includes `scripts/merge_cloudflared_ingress.py` which safely edits `/etc/cloudflared/config.yml` (creates a timestamped backup). It requires the tunnel to already exist and a local `config.yml` present.
-  - If your tunnel is token-only / managed by Cloudflare without a local config file, the merge script cannot modify cloud configuration — you'll need to add the ingress rule via the Cloudflare dashboard or convert your tunnel to a config-file-managed one.
-
-  Remote MBTiles configuration
-  - For remote deployments you can either copy MBTiles into `/var/lib/tileserver/mbtiles` on the target host, or include the filenames in the same `config.json` (deployed/copied by the playbook) so the role can pick them up automatically. The `config.json` approach is helpful for reproducible deployments where the playbook syncs only the MBTiles you list.
-
-  Style generation and local rewrites
-  - `scripts/rewire_style.py` rewrites upstream style files to point to local tile URLs. Use `--base-url` to embed a public tunnel URL or `--port` to point to your local tileserver port.
-
-  Examples
-  - Generate a local style for OpenMapTiles on port 8080:
-
-    python3 scripts/rewire_style.py --input styles/maptiler-basic/style.json --output web/maptiler-basic_local.json --mapping '{"openmaptiles":"openmaptiles"}' --port 8080
-
-  - Update an existing cloudflared config to add a path ingress to 127.0.0.1:8080:
-
-    python3 scripts/merge_cloudflared_ingress.py --config /etc/cloudflared/config.yml --path '/data/*' --service 'http://127.0.0.1:8080'
+  Configuration
+  - `config.json`: Configure TileServer-GL according to https://tileserver.readthedocs.io/en/latest/config.html
+  - `inventory.ini`: Set deployment variables (nginx port, Cloudflare settings, etc.)
+  - The Ansible role reads from these files and deploys automatically
+  
+  Style and data management
+  - Place style JSON files in `styles/{style-name}/style.json`
+  - Place MBTiles files in repository root
+  - Configure sources in `config.json` using `mbtiles://{source-name}` references
+  - Ansible automatically copies sprites, fonts, and styles to the correct locations
 
   Troubleshooting
   - If demo shows only controls and no map features:
     - Open browser DevTools → Network and Console
-    - Verify the style JSON and tiles (`/data/v3/{z}/{x}/{y}.pbf`) load with HTTP 200
-    - Ensure the style's `sources` reference the same source-layer names present in your MBTiles (`data.json` lists `vector_layers`)
-
-  - If `cloudflared` public hostname returns 404:
-    - Make sure the tunnel config (`/etc/cloudflared/config.yml`) exists and contains the new ingress. The role can add the ingress only if `cloudflared_update_ingress=true` and a config file is present.
+    - Verify the style JSON loads: `/styles/{style-name}/style.json`
+    - Verify tiles load: `/data/v3/{z}/{x}/{y}.pbf`
+    - Check that `config.json` sources use `mbtiles://{source-name}` format
+    - Ensure MBTiles files are in the repository root
+  
+  - If Cloudflare hostname returns 404:
+    - Verify `cloudflared_update_ingress=true` and config file exists at `/etc/cloudflared/config.yml`
+    - Check that ingress rules were added correctly
+  
+  - If fonts or sprites don't load:
+    - Ensure style files are in `styles/{style-name}/` directory
+    - Check that sprite files exist in `styles/{style-name}/sprite*.png` and `sprite*.json`
 
   Security
   - The merge script makes a backup before changing `/etc/cloudflared/config.yml`. If you prefer not to let Ansible edit your tunnel, set `cloudflared_update_ingress: false` and apply ingress rules manually.

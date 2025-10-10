@@ -1,10 +1,20 @@
 [tileserver]
 localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
 
-# Example group variables (uncomment and edit for your environment)
-#[tileserver:vars]
-# cloudflared_update_ingress=false
-# cloudflared_ingress_hostname=tileserver.example.com
-# cloudflared_ingress_path=/data/*
-# cloudflared_tiles_base_url=https://tileserver.example.com/data/{mbtiles}
-# tileserver_nginx_listen=127.0.0.1:8081
+# Optional variables - set these to enable automatic Cloudflare ingress modification and other settings
+[tileserver:vars]
+# Cloudflare Tunnel settings (optional - set to true to auto-update cloudflared config)
+cloudflared_update_ingress=true
+cloudflared_ingress_hostname=your-tileserver-domain.com
+cloudflared_ingress_path=/data/*
+cloudflared_tiles_base_url=https://your-tileserver-domain.com/data
+
+# Nginx settings (optional - defaults to port 80)
+tileserver_nginx_listen=127.0.0.1:8081
+
+# TileServer-GL configuration (recommended - uses config.json approach)
+config_json_path=config.json
+use_config_json_styles=true
+
+# Legacy style rewriting (set to false when using config.json)
+style_rewrite_enabled=false

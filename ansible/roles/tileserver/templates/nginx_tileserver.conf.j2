@@ -49,16 +49,13 @@ server {
         add_header 'Access-Control-Expose-Headers' 'Content-Length, Content-Range' always;
     }
 
-    # Proxy TileServer GL styles to enable CORS (use ^~ to take precedence over regex .json rule)
+    # Proxy TileServer GL styles (TileServer-GL already sends CORS headers)
     location ^~ /styles/ {
         proxy_pass http://127.0.0.1:{{ tileserver_port }}/styles/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_buffering off;
-
-        add_header 'Access-Control-Allow-Origin' '*' always;
-        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
-        add_header 'Access-Control-Allow-Headers' 'Origin, Accept, Accept-Encoding, Authorization, Content-Type' always;
+        # No additional CORS headers needed - TileServer-GL handles CORS
     }
 
     # Sprites and style files - ensure CORS so browser can load sprite.json/png
@@ -73,15 +70,13 @@ server {
         try_files $uri =404;
     }
 
-    # Fonts (glyphs) - proxy to TileServer GL (use ^~ to take precedence over regex .pbf rule if any)
+    # Fonts (glyphs) - proxy to TileServer GL (TileServer-GL handles CORS)
     location ^~ /fonts/ {
         proxy_pass http://127.0.0.1:{{ tileserver_port }}/fonts/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_buffering off;
-
-        add_header 'Access-Control-Allow-Origin' '*' always;
-        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+        # No additional CORS headers needed - TileServer-GL handles CORS
     }
 
     # Optional: prevent indexing

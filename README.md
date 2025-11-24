@@ -112,6 +112,10 @@ A) Local Deployment (Development/Testing)
     - Ensure style files are in `styles/{style-name}/` directory
     - Check that sprite files exist in `styles/{style-name}/sprite*.png` and `sprite*.json`
 
+  - To stop the TileServer-GL container and service:
+    - Run: `./scripts/stop_tileserver.sh`
+    - This stops the Docker container, disables the systemd service, and prevents auto-restarts
+
   Security
   - The merge script makes a backup before changing `/etc/cloudflared/config.yml`. If you prefer not to let Ansible edit your tunnel, set `cloudflared_update_ingress: false` and apply ingress rules manually.
 
